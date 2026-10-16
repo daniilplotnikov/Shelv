@@ -730,3 +730,4 @@
 "refreshing_metadata_format" = "Actualisation des métadonnées… %d / %d";
 "metadata_refresh_complete" = "Actualisation des métadonnées terminée";
 "metadata_refresh_failed_format" = "%d artistes sur %d n’ont pas pu être actualisés";
+"add_to_playlist_failed" = "Impossible d'ajouter à la playlist. Veuillez réessayer.";

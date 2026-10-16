@@ -730,3 +730,4 @@
 "refreshing_metadata_format" = "正在刷新元数据… %d / %d";
 "metadata_refresh_complete" = "元数据刷新完成";
 "metadata_refresh_failed_format" = "%d / %d 位艺人刷新失败";
+"add_to_playlist_failed" = "无法添加到播放列表，请重试。";

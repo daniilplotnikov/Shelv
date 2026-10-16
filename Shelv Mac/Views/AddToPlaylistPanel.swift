@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 
 private struct DuplicateSongsPrompt: Identifiable {
@@ -23,6 +24,7 @@ struct AddToPlaylistPanel: View {
     @State private var newPlaylistName = ""
     @State private var showDuplicatePrompt = false
     @State private var duplicatePrompt: DuplicateSongsPrompt?
+    @State private var addFailed = false
 
     private var visiblePlaylists: [Playlist] { libraryStore.playlists }
 
@@ -55,7 +57,7 @@ struct AddToPlaylistPanel: View {
                                     let duplicateIds = await libraryStore.songIdsAlreadyInPlaylist(playlist, songIds: songIds)
                                     if duplicateIds.isEmpty {
                                         let success = await libraryStore.addSongsToPlaylist(playlist, songIds: songIds)
-                                        if success { dismiss() }
+                                        finish(success)
                                     } else {
                                         duplicatePrompt = DuplicateSongsPrompt(playlist: playlist, songIds: songIds, duplicateIds: duplicateIds)
                                         showDuplicatePrompt = true
@@ -98,13 +100,12 @@ struct AddToPlaylistPanel: View {
                         Button(String(localized: "create")) {
                             let name = newPlaylistName.trimmingCharacters(in: .whitespaces)
                             guard !name.isEmpty else { return }
+                            playlistAddLogger.info("create tapped songsInPanel=\(songIds.count)")
                             Task {
-                                await libraryStore.createPlaylist(name: name)
-                                // Find and add to new playlist
-                                if let created = libraryStore.playlists.first(where: { $0.name == name }) {
-                                    await libraryStore.addSongsToPlaylist(created, songIds: songIds)
-                                }
-                                dismiss()
+                                // Created with its songs in one request. Looking the new playlist
+                                // up by name afterwards could pick another playlist of that name.
+                                let success = await libraryStore.createPlaylist(name: name, songIds: songIds)
+                                finish(success)
                             }
                         }
                         .disabled(newPlaylistName.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -115,6 +116,13 @@ struct AddToPlaylistPanel: View {
                 }
             }
             .listStyle(.inset)
+
+            if addFailed {
+                Text(String(localized: "add_to_playlist_failed"))
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(10)
+            }
         }
         .frame(width: 380, height: 440)
         .task {
@@ -132,13 +140,13 @@ struct AddToPlaylistPanel: View {
                 guard !remaining.isEmpty else { return }
                 Task {
                     let success = await libraryStore.addSongsToPlaylist(prompt.playlist, songIds: remaining)
-                    if success { dismiss() }
+                    finish(success)
                 }
             }
             Button(String(localized: "add_anyway")) {
                 Task {
                     let success = await libraryStore.addSongsToPlaylist(prompt.playlist, songIds: prompt.songIds)
-                    if success { dismiss() }
+                    finish(success)
                 }
             }
         } message: { prompt in
@@ -148,6 +156,17 @@ struct AddToPlaylistPanel: View {
                     : "songs_already_in_playlist_message_format"),
                 prompt.duplicateIds.count
             ))
+        }
+    }
+
+    /// Closes the panel only when the songs really are in the playlist. Otherwise it stays
+    /// open with a message, instead of looking like it worked.
+    private func finish(_ success: Bool) {
+        playlistAddLogger.info("panel finished success=\(success)")
+        if success {
+            dismiss()
+        } else {
+            addFailed = true
         }
     }
 }

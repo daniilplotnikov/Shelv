@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import OSLog
+
+let playlistAddLogger = Logger(subsystem: "ch.vkugler.Shelv", category: "PlaylistAdd")
 
 @MainActor
 class LibraryViewModel: ObservableObject {
@@ -1091,13 +1094,33 @@ class LibraryViewModel: ObservableObject {
         return try? JSONDecoder().decode(PlaylistDetail.self, from: data)
     }
 
-    func createPlaylist(name: String) async {
+    /// Creates the playlist together with its songs, then checks the server really has them
+    /// and adds whatever is missing. Returns false if the playlist or its songs did not land.
+    @discardableResult
+    func createPlaylist(name: String, songIds: [String] = []) async -> Bool {
+        playlistAddLogger.info("create start name=\(name, privacy: .public) songs=\(songIds.count)")
+        let created: Playlist
         do {
-            let created = try await api.createPlaylist(name: name)
+            created = try await api.createPlaylist(name: name, songIds: songIds)
             playlists.append(created)
+            playlistAddLogger.info("create ok id=\(created.id, privacy: .public) songCount=\(created.songCount ?? -1)")
         } catch {
+            playlistAddLogger.error("create failed error=\(String(describing: error), privacy: .public)")
             errorMessage = OfflineModeService.shared.inlineErrorMessage(for: error, userInitiated: true)
+            return false
         }
+        guard !songIds.isEmpty else {
+            playlistAddLogger.notice("create finished without songs, nothing to verify")
+            return true
+        }
+        guard let present = try? await api.getPlaylist(id: created.id).songs?.map(\.id) else {
+            playlistAddLogger.notice("create verify skipped, playlist could not be read back")
+            return true
+        }
+        let missing = songIds.filter { !present.contains($0) }
+        playlistAddLogger.info("create verify present=\(present.count) missing=\(missing.count)")
+        guard !missing.isEmpty else { return true }
+        return await addSongsToPlaylist(created, songIds: missing)
     }
 
     func deletePlaylist(_ playlist: Playlist) async {
@@ -1184,15 +1207,37 @@ class LibraryViewModel: ObservableObject {
         return PlaylistDuplicateChecker.duplicateSongIds(in: detail.songs ?? [], among: songIds)
     }
 
+    /// Adds the songs and confirms the playlist grew by that many. The server sometimes
+    /// answers OK without having added them, which used to go unnoticed; one retry, then
+    /// the caller is told it failed.
     @discardableResult
     func addSongsToPlaylist(_ playlist: Playlist, songIds: [String]) async -> Bool {
+        playlistAddLogger.info("add start playlist=\(playlist.id, privacy: .public) songs=\(songIds.count)")
         do {
+            let before = try? await api.getPlaylist(id: playlist.id).songs?.count
             try await api.updatePlaylist(id: playlist.id, songIdsToAdd: songIds)
+            if let before {
+                var after = try? await api.getPlaylist(id: playlist.id).songs?.count
+                playlistAddLogger.info("add verify before=\(before) after=\(after ?? -1)")
+                if let current = after, current == before {
+                    playlistAddLogger.notice("add not applied by server, retrying once")
+                    try await api.updatePlaylist(id: playlist.id, songIdsToAdd: songIds)
+                    after = try? await api.getPlaylist(id: playlist.id).songs?.count
+                    playlistAddLogger.info("add retry verify before=\(before) after=\(after ?? -1)")
+                }
+                if let after, after <= before {
+                    playlistAddLogger.error("add failed, playlist did not grow before=\(before) after=\(after)")
+                    return false
+                }
+            } else {
+                playlistAddLogger.notice("add verify skipped, playlist could not be read before adding")
+            }
             if let refreshed = try? await api.getPlaylists() {
                 playlists = refreshed
             }
             return true
         } catch {
+            playlistAddLogger.error("add failed error=\(String(describing: error), privacy: .public)")
             errorMessage = OfflineModeService.shared.inlineErrorMessage(for: error, userInitiated: true)
             return false
         }
