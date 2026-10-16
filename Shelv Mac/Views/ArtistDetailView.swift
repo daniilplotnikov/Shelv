@@ -797,17 +797,20 @@ class ArtistDetailViewModel: ObservableObject {
             isLoading = false
             return
         }
-        do {
-            async let artistDetail = api.getArtist(id: artistId)
-            async let artistInfo = api.getArtistInfo(
+        // Unstructured on purpose: for artists without a biography or similar artists
+        // the server can take many seconds to answer, and the page must not sit on its
+        // spinner for that. It is waited for only briefly; a late answer fills it in.
+        let infoTask = Task<ArtistInfo?, Never> { [api] in
+            try? await api.getArtistInfo(
                 id: artistId,
                 similarArtistCount: ArtistPageLayout.similarArtistRequestCount
             )
+        }
+        do {
             // Everything is awaited into locals first and only then written to
             // state in one go. Assigning between two awaits lets SwiftUI render in
             // between, which is what made the sections appear one after another.
-            let detail = try await artistDetail
-            let info = try? await artistInfo
+            let detail = try await api.getArtist(id: artistId)
             // The ranking is part of the same wait: letting it run after the page
             // is up is exactly what made the shelf appear on its own.
             let loadedTopSongs = await ArtistTopSongsService.topSongs(
@@ -817,23 +820,35 @@ class ArtistDetailViewModel: ObservableObject {
             ) { albumID in
                 (try? await SubsonicAPIService.shared.getAlbum(id: albumID).song) ?? []
             }
+            let info = await TaskRace.value(of: infoTask, timeout: .seconds(2))
 
             artist = detail
             isShowingDownloadsOnly = false
             albums = (detail.album ?? []).sorted { ($0.year ?? 0) > ($1.year ?? 0) }
             topSongs = loadedTopSongs
-            biography = info?.biography?.strippingHTML
-            // Servers can list a track/featured artist with no album of their
-            // own here; tapping through would land on an empty artist page.
-            similarArtists = ArtistPageLayout.shownSimilarArtists(from: info?.similarArtist)
-            musicBrainzId = info?.musicBrainzId
-            lastFmURLString = info?.lastFmUrl
+            if let info {
+                applyInfo(info)
+            } else {
+                Task {
+                    guard let late = await infoTask.value else { return }
+                    applyInfo(late)
+                }
+            }
         } catch {
             let inlineMessage = OfflineModeService.shared.inlineErrorMessage(for: error)
             populateFromLocal(artistId: artistId, artistName: artistName)
             if artist == nil { errorMessage = inlineMessage }
         }
         isLoading = false
+    }
+
+    private func applyInfo(_ info: ArtistInfo) {
+        biography = info.biography?.strippingHTML
+        // Servers can list a track/featured artist with no album of their
+        // own here; tapping through would land on an empty artist page.
+        similarArtists = ArtistPageLayout.shownSimilarArtists(from: info.similarArtist)
+        musicBrainzId = info.musicBrainzId
+        lastFmURLString = info.lastFmUrl
     }
 
     private func populateFromLocal(artistId: String, artistName: String) {

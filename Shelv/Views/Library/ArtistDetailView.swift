@@ -934,17 +934,21 @@ struct ArtistDetailView: View {
             return
         }
         isLoading = detail == nil
-        do {
-            async let artistDetail = SubsonicAPIService.shared.getArtist(id: artist.id)
-            async let artistInfo = SubsonicAPIService.shared.getArtistInfo(
+        // Unstructured on purpose: for artists without a biography or similar artists
+        // the server can take many seconds to answer (it asks external sources first),
+        // and the page must not sit on its spinner for that. It is waited for only
+        // briefly; a late answer fills the bio in afterwards.
+        let infoTask = Task<ArtistInfo?, Never> {
+            try? await SubsonicAPIService.shared.getArtistInfo(
                 id: artist.id,
                 similarArtistCount: ArtistPageLayout.similarArtistRequestCount
             )
+        }
+        do {
             // Everything is awaited into locals first and only then written to
             // state in one go. Assigning between two awaits lets SwiftUI render in
             // between, which is what made the sections appear one after another.
-            let loadedDetail = try await artistDetail
-            let info = try? await artistInfo
+            let loadedDetail = try await SubsonicAPIService.shared.getArtist(id: artist.id)
             // The ranking is part of the same wait: letting it run after the page
             // is up is exactly what made the shelf appear on its own.
             let loadedTopSongs = await ArtistTopSongsService.topSongs(
@@ -954,16 +958,19 @@ struct ArtistDetailView: View {
             ) { albumID in
                 (try? await SubsonicAPIService.shared.getAlbum(id: albumID).song) ?? []
             }
+            let info = await TaskRace.value(of: infoTask, timeout: .seconds(2))
 
             detail = loadedDetail
             isShowingDownloadsOnly = false
             topSongs = loadedTopSongs
-            biography = info?.biography?.strippingHTML
-            // Servers can list a track/featured artist with no album of their
-            // own here; tapping through would land on an empty artist page.
-            similarArtists = ArtistPageLayout.shownSimilarArtists(from: info?.similarArtist)
-            musicBrainzId = info?.musicBrainzId
-            lastFmURLString = info?.lastFmUrl
+            if let info {
+                applyInfo(info)
+            } else {
+                Task {
+                    guard let late = await infoTask.value else { return }
+                    applyInfo(late)
+                }
+            }
             isLoading = false
         } catch {
             populateFromLocal()
@@ -972,6 +979,15 @@ struct ArtistDetailView: View {
             }
         }
         isLoading = false
+    }
+
+    private func applyInfo(_ info: ArtistInfo) {
+        biography = info.biography?.strippingHTML
+        // Servers can list a track/featured artist with no album of their
+        // own here; tapping through would land on an empty artist page.
+        similarArtists = ArtistPageLayout.shownSimilarArtists(from: info.similarArtist)
+        musicBrainzId = info.musicBrainzId
+        lastFmURLString = info.lastFmUrl
     }
 
     /// Rows in the Top Songs shelf: two columns of four, side by side when
