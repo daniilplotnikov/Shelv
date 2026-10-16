@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 
 struct ContentView: View {
@@ -85,8 +86,7 @@ struct MainWindowView: View {
     @ObservedObject var libraryStore = LibraryViewModel.shared
     @ObservedObject var offlineMode = OfflineModeService.shared
 
-    @State private var showAddToPlaylist = false
-    @State private var playlistSongIds: [String] = []
+    @State private var playlistSelection: PlaylistSongSelection?
     @State private var toastMessage: String?
     @State private var toastIsError = false
     @State private var toastTask: Task<Void, Never>?
@@ -194,8 +194,10 @@ struct MainWindowView: View {
         .animation(.spring(duration: 0.35), value: toastMessage)
         .onReceive(NotificationCenter.default.publisher(for: .addSongsToPlaylist)) { notification in
             if let ids = notification.object as? [String] {
-                playlistSongIds = ids
-                showAddToPlaylist = true
+                playlistAddLogger.info("panel requested songs=\(ids.count)")
+                playlistSelection = PlaylistSongSelection(songIds: ids)
+            } else {
+                playlistAddLogger.error("panel request ignored, unexpected payload type")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showToast)) { notification in
@@ -235,8 +237,10 @@ struct MainWindowView: View {
                 handleShortcutDestination(destination)
             }
         }
-        .sheet(isPresented: $showAddToPlaylist) {
-            AddToPlaylistPanel(songIds: playlistSongIds)
+        // item: binds the songs to the presentation itself. With isPresented plus a separate
+        // songs state, the sheet could be built with the previous (initially empty) songs.
+        .sheet(item: $playlistSelection) { selection in
+            AddToPlaylistPanel(songIds: selection.songIds)
                 .environmentObject(libraryStore)
         }
     }
@@ -312,4 +316,9 @@ struct MainWindowView: View {
         .environmentObject(AppState.shared)
         .environmentObject(AppState.shared.serverStore)
         .frame(width: 1200, height: 760)
+}
+
+private struct PlaylistSongSelection: Identifiable {
+    let id = UUID()
+    let songIds: [String]
 }
