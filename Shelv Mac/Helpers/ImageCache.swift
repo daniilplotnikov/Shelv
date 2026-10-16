@@ -318,8 +318,7 @@ actor ImageCacheService {
                 let diskURL = dir.appendingPathComponent(candidateKey)
                 guard let data = try? Data(contentsOf: diskURL),
                       let image = NSImage(data: data) else { continue }
-                if let template,
-                   await CoverPlaceholderDetector.shared.isPlaceholder(
+                if await CoverPlaceholderDetector.shared.isPlaceholder(
                        data,
                        size: CoverPlaceholderDetector.size(fromCacheKey: candidateKey),
                        template: template

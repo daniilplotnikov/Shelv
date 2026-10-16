@@ -1,17 +1,27 @@
+import CryptoKit
 import Foundation
 
 /// Navidrome answers `getCoverArt` for albums whose artwork is not available yet (for
 /// example right after an upload, before the scan has finished) with a generic placeholder
 /// image and HTTP 200. Cached like a real cover, that placeholder would stick forever because
-/// a disk hit is never re-checked. This detects it by comparing the bytes against the
-/// server's own answer for a cover id that cannot exist, so callers can skip caching it
-/// and ask the server again next time.
+/// a disk hit is never re-checked. This detects it so callers can skip caching it and ask
+/// the server again next time.
+///
+/// Two checks: the bytes of Navidrome's built-in placeholder (it is returned unscaled, so
+/// the same file comes back for every requested size), and the server's own answer for a
+/// cover id that cannot exist, which covers servers with a different placeholder.
 actor CoverPlaceholderDetector {
     static let shared = CoverPlaceholderDetector()
 
     private static let probeCoverID = "al-shelv-placeholder-probe"
     private static let referenceMaxAge: TimeInterval = 7 * 24 * 3600
     private static let failureBackoff: TimeInterval = 10 * 60
+
+    /// Byte count -> SHA-256 of placeholder images known to be served by Navidrome.
+    /// The count is a cheap pre-filter so ordinary covers are never hashed.
+    nonisolated static let knownPlaceholderHashes: [Int: Set<String>] = [
+        69228: ["273a4dbd61dfbb0a12d5d8ffe780eb7a3d4d000bc9771c5411cc70ae4dfa8a1f"]
+    ]
 
     private let dir: URL
     private var references: [String: Data] = [:]
@@ -27,8 +37,9 @@ actor CoverPlaceholderDetector {
 
     /// `template` is any getCoverArt URL of the server in question; its auth items are reused.
     /// `size` defaults to the template's own size.
-    func isPlaceholder(_ data: Data, size: Int? = nil, template: URL) async -> Bool {
-        guard template.path.contains("getCoverArt"),
+    func isPlaceholder(_ data: Data, size: Int? = nil, template: URL?) async -> Bool {
+        if Self.isKnownPlaceholder(data) { return true }
+        guard let template, template.path.contains("getCoverArt"),
               let components = URLComponents(url: template, resolvingAgainstBaseURL: false)
         else { return false }
         let resolvedSize = size
@@ -37,6 +48,15 @@ actor CoverPlaceholderDetector {
               let reference = await reference(size: resolvedSize, components: components)
         else { return false }
         return data == reference
+    }
+
+    nonisolated static func isKnownPlaceholder(
+        _ data: Data,
+        in table: [Int: Set<String>] = knownPlaceholderHashes
+    ) -> Bool {
+        guard let hashes = table[data.count] else { return false }
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        return hashes.contains(digest)
     }
 
     /// Cache keys of all three platforms end in `_<size>`.

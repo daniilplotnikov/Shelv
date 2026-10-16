@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 
 private final class StubProtocol: URLProtocol {
@@ -135,5 +136,36 @@ final class CoverPlaceholderDetectorTests: XCTestCase {
         XCTAssertEqual(CoverPlaceholderDetector.size(fromCacheKey: "host_al-1_600"), 600)
         XCTAssertNil(CoverPlaceholderDetector.size(fromCacheKey: "nounderscore"))
         XCTAssertNil(CoverPlaceholderDetector.size(fromCacheKey: "al-1_abc"))
+    }
+}
+
+final class KnownPlaceholderTests: XCTestCase {
+    func testMatchesWhenCountAndHashAgree() {
+        let bytes = Data(repeating: 7, count: 10)
+        let hash = SHA256Hex.of(bytes)
+
+        XCTAssertTrue(CoverPlaceholderDetector.isKnownPlaceholder(bytes, in: [10: [hash]]))
+        XCTAssertFalse(CoverPlaceholderDetector.isKnownPlaceholder(Data(repeating: 8, count: 10), in: [10: [hash]]))
+        XCTAssertFalse(CoverPlaceholderDetector.isKnownPlaceholder(Data(repeating: 7, count: 11), in: [10: [hash]]))
+    }
+
+    func testBuiltInTableHoldsNavidromesPlaceholder() {
+        XCTAssertEqual(
+            CoverPlaceholderDetector.knownPlaceholderHashes[69228],
+            ["273a4dbd61dfbb0a12d5d8ffe780eb7a3d4d000bc9771c5411cc70ae4dfa8a1f"]
+        )
+    }
+
+    func testIsDetectedWithoutAnyTemplateOrNetwork() async {
+        // A table entry for the real placeholder cannot be forged without its bytes, so
+        // this only checks that a missing template is accepted and means "not a placeholder".
+        let result = await CoverPlaceholderDetector.shared.isPlaceholder(Data([1, 2, 3]), template: nil)
+        XCTAssertFalse(result)
+    }
+}
+
+private enum SHA256Hex {
+    static func of(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
