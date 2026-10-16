@@ -65,6 +65,7 @@
 		BC5A00012FFF000000000001 /* Shelv TV Siri Extension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BC5A00032FFF000000000001 /* Shelv TV Siri Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BC7B84A72FDB17F90058CB78 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = BC7B84A62FDB17F90058CB78 /* GRDB */; };
 		D65A40B16B924F709F912515 /* ShelvCore/Services/ConcurrencyLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB776033CC96417A93CA66DB /* ShelvCore/Services/ConcurrencyLimiter.swift */; };
+		BC10A0012FFE000000000001 /* ShelvCore/Services/CoverPlaceholderDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC10A0022FFE000000000001 /* ShelvCore/Services/CoverPlaceholderDetector.swift */; };
 		BC10A0032FFE000000000001 /* ShelvCore/Utilities/TaskRace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC10A0042FFE000000000001 /* ShelvCore/Utilities/TaskRace.swift */; };
 /* End PBXBuildFile section */
 
@@ -159,6 +160,7 @@
 		DB776033CC96417A93CA66DB /* ShelvCore/Services/ConcurrencyLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelvCore/Services/ConcurrencyLimiter.swift; sourceTree = "<group>"; };
 		F2D3956FCB8E5BA0EA7B365B /* ShelvCore/Services/ArtistTopSongsRanking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelvCore/Services/ArtistTopSongsRanking.swift; sourceTree = "<group>"; };
 		FFBB0EAEC930A6AA93845AF6 /* ShelvCore/Services/ArtistDiscography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelvCore/Services/ArtistDiscography.swift; sourceTree = "<group>"; };
+		BC10A0022FFE000000000001 /* ShelvCore/Services/CoverPlaceholderDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelvCore/Services/CoverPlaceholderDetector.swift; sourceTree = "<group>"; };
 		BC10A0042FFE000000000001 /* ShelvCore/Utilities/TaskRace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelvCore/Utilities/TaskRace.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -318,6 +320,7 @@
 				BC1001202FFE000000000001 /* ShelvCore/Support/PersonalizationSettings.swift */,
 				BC1001412FFE000000000001 /* ShelvCore/Services/ArtworkLoadRequestTracker.swift */,
 				BC10A0042FFE000000000001 /* ShelvCore/Utilities/TaskRace.swift */,
+				BC10A0022FFE000000000001 /* ShelvCore/Services/CoverPlaceholderDetector.swift */,
 				BC1001452FFE000000000001 /* ShelvCore/Services/KeychainService.swift */,
 				BC10014B2FFE000000000001 /* ShelvCore/Services/BackgroundWorkCoordinator.swift */,
 				BC10014F2FFE000000000001 /* ShelvCore/Services/DownloadProgressCoalescer.swift */,
@@ -648,6 +651,7 @@
 				BC10013E2FFE000000000001 /* ShelvCore/Services/PlaybackContentResolver.swift in Sources */,
 				BC1001402FFE000000000001 /* ShelvCore/Services/ArtworkLoadRequestTracker.swift in Sources */,
 				BC10A0032FFE000000000001 /* ShelvCore/Utilities/TaskRace.swift in Sources */,
+				BC10A0012FFE000000000001 /* ShelvCore/Services/CoverPlaceholderDetector.swift in Sources */,
 				BC1001072FFE000000000001 /* ShelvCore/Services/AudioPlayerQueueState.swift in Sources */,
 				BC1001422FFE000000000001 /* ShelvCore/Services/AudioPlayerStreamCacheJob.swift in Sources */,
 				BC1001082FFE000000000001 /* ShelvCore/Services/TranscodingPolicy.swift in Sources */,

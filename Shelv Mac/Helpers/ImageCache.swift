@@ -312,11 +312,21 @@ actor ImageCacheService {
         if let hit = memory.object(forKey: key as NSString) { return hit }
         let dir = cacheDir
         let keys = [key] + fallbackKeys
+        let template = SubsonicAPIService.shared.coverArtURL(id: "placeholder-probe", size: 300)
         let result = await Task.detached(priority: .medium) { () -> (NSImage, String)? in
             for candidateKey in keys {
                 let diskURL = dir.appendingPathComponent(candidateKey)
                 guard let data = try? Data(contentsOf: diskURL),
                       let image = NSImage(data: data) else { continue }
+                if let template,
+                   await CoverPlaceholderDetector.shared.isPlaceholder(
+                       data,
+                       size: CoverPlaceholderDetector.size(fromCacheKey: candidateKey),
+                       template: template
+                   ) {
+                    try? FileManager.default.removeItem(at: diskURL)
+                    continue
+                }
                 return (image, candidateKey)
             }
             return nil
@@ -340,15 +350,20 @@ actor ImageCacheService {
         let dir = cacheDir
         let sizes = fallbackSizes ?? Self.coverFallbackSizes(preferred: Self.preferredSize(for: url))
         let result = await Task.detached(priority: .medium) { () -> (NSImage, String)? in
-            if let data = try? Data(contentsOf: diskURL),
-               let img = NSImage(data: data) {
-                return (img, key)
-            }
-            for fallbackKey in Self.fallbackCacheKeys(for: url, key: key, sizes: sizes) {
-                let fallbackURL = dir.appendingPathComponent(fallbackKey)
-                guard let data = try? Data(contentsOf: fallbackURL),
+            for candidateKey in [key] + Self.fallbackCacheKeys(for: url, key: key, sizes: sizes) {
+                let candidateURL = dir.appendingPathComponent(candidateKey)
+                guard let data = try? Data(contentsOf: candidateURL),
                       let img = NSImage(data: data) else { continue }
-                return (img, fallbackKey)
+                if await CoverPlaceholderDetector.shared.isPlaceholder(
+                    data,
+                    size: CoverPlaceholderDetector.size(fromCacheKey: candidateKey),
+                    template: url
+                ) {
+                    // A server placeholder cached earlier must not shadow the real cover.
+                    try? FileManager.default.removeItem(at: candidateURL)
+                    continue
+                }
+                return (img, candidateKey)
             }
             return nil
         }.value
@@ -393,10 +408,13 @@ actor ImageCacheService {
         let diskURL = cacheDir.appendingPathComponent(key)
         let cache = self
         let task = Task.detached(priority: .userInitiated) { [diskURL] () -> NSImage? in
-            // Disk-Cache prüfen
             if let data = try? Data(contentsOf: diskURL),
                let img = NSImage(data: data) {
-                return img
+                if await CoverPlaceholderDetector.shared.isPlaceholder(data, template: url) {
+                    try? FileManager.default.removeItem(at: diskURL)
+                } else {
+                    return img
+                }
             }
             if Task.isCancelled { return nil }
             await cache.acquireDownloadSlot()
@@ -568,6 +586,8 @@ actor ImageCacheService {
             guard let (data, response) = try? await session.data(for: request),
                   (response as? HTTPURLResponse)?.statusCode == 200,
                   let img = NSImage(data: data) else { continue }
+            // Not cached, so the next request asks the server again.
+            if await CoverPlaceholderDetector.shared.isPlaceholder(data, template: url) { return nil }
             try? data.write(to: diskURL, options: .atomic)
             return img
         }

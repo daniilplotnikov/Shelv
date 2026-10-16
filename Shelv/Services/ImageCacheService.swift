@@ -79,11 +79,22 @@ actor ImageCacheService {
             }
         }
         let dir = cacheDir
+        let template = SubsonicAPIService.shared.coverArtURL(for: "placeholder-probe", size: 300)
         let result = await Task.detached(priority: .medium) { () -> (String, UIImage)? in
             for candidate in candidates {
                 let fallbackURL = dir.appendingPathComponent(candidate.pathSafeComponent)
                 guard let data = try? Data(contentsOf: fallbackURL),
                       let img = UIImage(data: data) else { continue }
+                if let template,
+                   await CoverPlaceholderDetector.shared.isPlaceholder(
+                       data,
+                       size: CoverPlaceholderDetector.size(fromCacheKey: candidate),
+                       template: template
+                   ) {
+                    // A server placeholder cached earlier must not shadow the real cover.
+                    try? FileManager.default.removeItem(at: fallbackURL)
+                    continue
+                }
                 return (candidate, img)
             }
             return nil
@@ -141,7 +152,11 @@ actor ImageCacheService {
             if Task.isCancelled { return nil }
             if let data = try? Data(contentsOf: diskURL),
                let img = UIImage(data: data) {
-                return img
+                if await CoverPlaceholderDetector.shared.isPlaceholder(data, template: url) {
+                    try? FileManager.default.removeItem(at: diskURL)
+                } else {
+                    return img
+                }
             }
             if Task.isCancelled { return nil }
             guard await cache.downloadLimiter.acquire() else { return nil }
@@ -149,6 +164,8 @@ actor ImageCacheService {
             if Task.isCancelled { return nil }
             guard let (data, img) = await Self.downloadImage(from: url) else { return nil }
             if Task.isCancelled { return nil }
+            // Not cached, so the next request asks the server again.
+            if await CoverPlaceholderDetector.shared.isPlaceholder(data, template: url) { return nil }
             try? data.write(to: diskURL, options: .atomic)
             return img
         }
