@@ -241,11 +241,23 @@ struct ArtistAllAlbumsView: View {
 /// (newest, last played, ...), so unlike `ArtistAllAlbumsView` it has no sorting.
 struct DiscoverAlbumsListView: View {
     let title: String
-    let albums: [Album]
+    let shelfAlbums: [Album]
+    /// Subsonic list type of the shelf ("newest", "recent", ...), used to load more.
+    let listType: String
+
+    @State private var albums: [Album]
+    @ObservedObject private var offlineMode = OfflineModeService.shared
 
     @AppStorage("artistDetailAlbumIsGrid") private var isGrid = true
     @Environment(\.personalizationSwipeConfiguration) private var personalization
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
+
+    init(title: String, shelfAlbums: [Album], listType: String) {
+        self.title = title
+        self.shelfAlbums = shelfAlbums
+        self.listType = listType
+        _albums = State(initialValue: shelfAlbums)
+    }
 
     var body: some View {
         Group {
@@ -309,6 +321,15 @@ struct DiscoverAlbumsListView: View {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
                 }
             }
+        }
+        .task {
+            guard !offlineMode.isOffline,
+                  let fetched = try? await SubsonicAPIService.shared.getAlbumList(
+                      type: listType,
+                      size: DiscoverAlbumList.fullListSize
+                  )
+            else { return }
+            albums = DiscoverAlbumList.merged(shelf: shelfAlbums, fetched: fetched)
         }
     }
 }

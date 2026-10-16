@@ -20,7 +20,7 @@ class DiscoverViewModel: ObservableObject {
 
     private let api = SubsonicAPIService.shared
     private let player = AudioPlayerService.shared
-    private static let shelfSize = 30
+    private static let shelfSize = DiscoverAlbumList.shelfSize
     private var loadGeneration = 0
     private var hasLoadedDiscoverContent = false
     private var activeLoadTask: Task<Bool, Never>?

@@ -25,6 +25,8 @@ struct ArtistAlbumGroup: Hashable {
     let albums: [Album]
     /// Keeps the given order and hides the sort picker (Discover shelves).
     var keepsOrder = false
+    /// Set for Discover shelves: the list then loads more albums than the shelf shows.
+    var listType: AlbumListType? = nil
 }
 
 /// A horizontal shelf of releases. Splitting albums from singles reads better
@@ -102,7 +104,9 @@ struct ArtistAllAlbumsView: View {
     let title: String
     let albums: [Album]
     var keepsOrder = false
+    var listType: AlbumListType? = nil
 
+    @State private var displayedAlbums: [Album]?
     @AppStorage("artistAllAlbumsIsGrid") private var isGrid = true
     @AppStorage("artistDetailAlbumSort") private var sortRaw: String = LibrarySortOption.recentlyAdded.rawValue
     @AppStorage("artistDetailAlbumDirection") private var directionRaw: String = SortDirection.descending.rawValue
@@ -116,7 +120,7 @@ struct ArtistAllAlbumsView: View {
     }
 
     private var sortedAlbums: [Album] {
-        if keepsOrder { return albums }
+        if keepsOrder { return displayedAlbums ?? albums }
         return ArtistAlbumPlaybackOrder.sorted(
             albums,
             preference: ArtistAlbumSortPreference(sortRaw: sortRaw, directionRaw: directionRaw)
@@ -197,6 +201,15 @@ struct ArtistAllAlbumsView: View {
             }
         }
         .navigationTitle(title)
+        .task {
+            guard let listType, !offlineMode.isOffline,
+                  let fetched = try? await SubsonicAPIService.shared.getAlbumList(
+                      type: listType,
+                      size: DiscoverAlbumList.fullListSize
+                  )
+            else { return }
+            displayedAlbums = DiscoverAlbumList.merged(shelf: albums, fetched: fetched)
+        }
     }
 }
 

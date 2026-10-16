@@ -364,7 +364,7 @@ final class CarPlayDiscoverController {
                 guard !albums.isEmpty else { continue }
                 let title = NSLocalizedString(section.titleKey, comment: "")
                 sections.append(CPListSection(
-                    items: [coverRowItem(title: title, albums: albums, imageMap: imageMap)],
+                    items: [coverRowItem(title: title, albums: albums, listType: Self.listType(for: section), imageMap: imageMap)],
                     header: nil,
                     sectionIndexTitle: nil
                 ))
@@ -442,7 +442,16 @@ final class CarPlayDiscoverController {
         return "\(order)|\(mixes)"
     }
 
-    private func coverRowItem(title: String, albums: [Album], imageMap: [String: UIImage]) -> CPListImageRowItem {
+    private static func listType(for section: PersonalizationDiscoverySection) -> String {
+        switch section {
+        case .recentlyAdded: return "newest"
+        case .recentlyPlayed: return "recent"
+        case .frequentlyPlayed: return "frequent"
+        default: return "random"
+        }
+    }
+
+    private func coverRowItem(title: String, albums: [Album], listType: String, imageMap: [String: UIImage]) -> CPListImageRowItem {
         let preview = Array(albums.prefix(kPreviewCount))
         let covers: [UIImage] = preview.map { album in
             if let id = album.coverArt, let img = imageMap[id] { return img }
@@ -456,8 +465,19 @@ final class CarPlayDiscoverController {
         }
         row.handler = { [weak self] _, c in
             guard let self else { c(); return }
-            self.pushFullAlbumList(title: title, albums: albums)
-            c()
+            // The row only previews the shelf; the list behind it asks for more.
+            Task { @MainActor [weak self] in
+                var full = albums
+                if !OfflineModeService.shared.isOffline,
+                   let fetched = try? await SubsonicAPIService.shared.getAlbumList(
+                       type: listType,
+                       size: DiscoverAlbumList.fullListSize
+                   ) {
+                    full = DiscoverAlbumList.merged(shelf: albums, fetched: fetched)
+                }
+                self?.pushFullAlbumList(title: title, albums: full)
+                c()
+            }
         }
         return row
     }

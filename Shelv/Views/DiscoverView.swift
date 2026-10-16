@@ -729,7 +729,7 @@ struct DiscoverView: View {
 
     @ViewBuilder
     private var randomAlbumSection: some View {
-        albumSection(title: String(localized: "random_albums"), albums: contentObserver.library.randomAlbums) {
+        albumSection(title: String(localized: "random_albums"), albums: contentObserver.library.randomAlbums, listType: "random") {
             Button {
                 randomRefreshing = true
                 Task {
@@ -811,17 +811,20 @@ struct DiscoverView: View {
         case .recentlyAdded:
             albumSection(
                 title: String(localized: "recently_added"),
-                albums: contentObserver.library.recentlyAdded
+                albums: contentObserver.library.recentlyAdded,
+                listType: "newest"
             )
         case .recentlyPlayed:
             albumSection(
                 title: String(localized: "recently_played"),
-                albums: contentObserver.library.recentlyPlayed
+                albums: contentObserver.library.recentlyPlayed,
+                listType: "recent"
             )
         case .frequentlyPlayed:
             albumSection(
                 title: String(localized: "frequently_played"),
-                albums: contentObserver.library.frequentlyPlayed
+                albums: contentObserver.library.frequentlyPlayed,
+                listType: "frequent"
             )
         case .randomAlbums:
             randomAlbumSection
@@ -829,11 +832,11 @@ struct DiscoverView: View {
     }
 
     @ViewBuilder
-    private func albumSection<T: View>(title: String, albums: [Album], @ViewBuilder trailingButton: () -> T = { EmptyView() }) -> some View {
+    private func albumSection<T: View>(title: String, albums: [Album], listType: String, @ViewBuilder trailingButton: () -> T = { EmptyView() }) -> some View {
         if !albums.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    NavigationLink(destination: DiscoverAlbumsListView(title: title, albums: albums)) {
+                    NavigationLink(destination: DiscoverAlbumsListView(title: title, shelfAlbums: albums, listType: listType)) {
                         HStack(spacing: 4) {
                             Text(title)
                                 .font(.title3).bold()

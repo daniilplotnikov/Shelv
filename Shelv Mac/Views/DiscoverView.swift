@@ -765,21 +765,22 @@ struct DiscoverView: View {
             }
         case .recentlyAdded:
             if !vm.recentlyAdded.isEmpty {
-                AlbumShelfSection(title: String(localized: "recently_added"), albums: vm.recentlyAdded)
+                AlbumShelfSection(title: String(localized: "recently_added"), albums: vm.recentlyAdded, listType: .newest)
             }
         case .recentlyPlayed:
             if !vm.recentlyPlayed.isEmpty {
-                AlbumShelfSection(title: String(localized: "recently_played"), albums: vm.recentlyPlayed)
+                AlbumShelfSection(title: String(localized: "recently_played"), albums: vm.recentlyPlayed, listType: .recentlyPlayed)
             }
         case .frequentlyPlayed:
             if !vm.frequentlyPlayed.isEmpty {
-                AlbumShelfSection(title: String(localized: "frequently_played"), albums: vm.frequentlyPlayed)
+                AlbumShelfSection(title: String(localized: "frequently_played"), albums: vm.frequentlyPlayed, listType: .frequent)
             }
         case .randomAlbums:
             if !vm.randomAlbums.isEmpty {
                 AlbumShelfSection(
                     title: String(localized: "random_albums"),
                     albums: vm.randomAlbums,
+                    listType: .random,
                     refreshAction: { await vm.refreshRandom() }
                 )
             }
@@ -886,6 +887,7 @@ private struct MixButtonPressStyle: ButtonStyle {
 struct AlbumShelfSection: View {
     let title: String
     let albums: [Album]
+    var listType: AlbumListType? = nil
     var refreshAction: (() async -> Void)? = nil
 
     private let cardWidth: CGFloat   = 150
@@ -902,7 +904,7 @@ struct AlbumShelfSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center) {
-                NavigationLink(value: ArtistAlbumGroup(title: title, albums: albums, keepsOrder: true)) {
+                NavigationLink(value: ArtistAlbumGroup(title: title, albums: albums, keepsOrder: true, listType: listType)) {
                     HStack(spacing: 6) {
                         Text(title)
                             .font(.title2).bold()
