@@ -464,7 +464,7 @@ final class CarPlayDiscoverController {
 
     private func pushFullAlbumList(title: String, albums: [Album]) {
         var itemsByCoverId: [String: [CPListItem]] = [:]
-        let items = albums.map { album -> CPListItem in
+        let items = albums.prefix(CPListTemplate.maximumItemCount).map { album -> CPListItem in
             let item = albumListItem(album) { [weak self] _, c in
                 guard let self else { c(); return }
                 c()

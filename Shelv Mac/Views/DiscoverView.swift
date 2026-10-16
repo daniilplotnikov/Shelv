@@ -902,8 +902,16 @@ struct AlbumShelfSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center) {
-                Text(title)
-                    .font(.title2).bold()
+                NavigationLink(value: ArtistAlbumGroup(title: title, albums: albums, keepsOrder: true)) {
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.title2).bold()
+                        Image(systemName: "chevron.right")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 HStack(spacing: 6) {
                     if let refreshAction {

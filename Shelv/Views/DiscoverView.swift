@@ -833,8 +833,18 @@ struct DiscoverView: View {
         if !albums.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(title)
-                        .font(.title3).bold()
+                    NavigationLink(destination: DiscoverAlbumsListView(title: title, albums: albums)) {
+                        HStack(spacing: 4) {
+                            Text(title)
+                                .font(.title3).bold()
+                                .foregroundStyle(.primary)
+                            Image(systemName: "chevron.right")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .navigationLinkIndicatorVisibility(.hidden)
                     Spacer()
                     trailingButton()
                 }

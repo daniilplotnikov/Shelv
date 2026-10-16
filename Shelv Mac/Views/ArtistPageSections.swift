@@ -23,6 +23,8 @@ extension ArtistReleaseGroup {
 struct ArtistAlbumGroup: Hashable {
     let title: String
     let albums: [Album]
+    /// Keeps the given order and hides the sort picker (Discover shelves).
+    var keepsOrder = false
 }
 
 /// A horizontal shelf of releases. Splitting albums from singles reads better
@@ -99,6 +101,7 @@ extension ArtistReleaseShelf where Accessory == EmptyView {
 struct ArtistAllAlbumsView: View {
     let title: String
     let albums: [Album]
+    var keepsOrder = false
 
     @AppStorage("artistAllAlbumsIsGrid") private var isGrid = true
     @AppStorage("artistDetailAlbumSort") private var sortRaw: String = LibrarySortOption.recentlyAdded.rawValue
@@ -113,7 +116,8 @@ struct ArtistAllAlbumsView: View {
     }
 
     private var sortedAlbums: [Album] {
-        ArtistAlbumPlaybackOrder.sorted(
+        if keepsOrder { return albums }
+        return ArtistAlbumPlaybackOrder.sorted(
             albums,
             preference: ArtistAlbumSortPreference(sortRaw: sortRaw, directionRaw: directionRaw)
         )
@@ -123,27 +127,29 @@ struct ArtistAllAlbumsView: View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Picker("\(String(localized: "sort")):", selection: $sortRaw) {
-                    ForEach(LibrarySortOption.allCases.filter {
-                        $0 != .artist && (!offlineMode.isOffline || !$0.requiresServer)
-                    }, id: \.rawValue) { opt in
-                        Text(opt.label).tag(opt.rawValue)
+                if !keepsOrder {
+                    Picker("\(String(localized: "sort")):", selection: $sortRaw) {
+                        ForEach(LibrarySortOption.allCases.filter {
+                            $0 != .artist && (!offlineMode.isOffline || !$0.requiresServer)
+                        }, id: \.rawValue) { opt in
+                            Text(opt.label).tag(opt.rawValue)
+                        }
                     }
-                }
-                .pickerStyle(.menu)
-                .tint(.primary)
-                .frame(width: 180)
-                if sortOption.allowsDirection {
-                    Button {
-                        directionRaw = direction == .ascending
-                            ? SortDirection.descending.rawValue
-                            : SortDirection.ascending.rawValue
-                    } label: {
-                        Image(systemName: direction == .ascending ? "arrow.up" : "arrow.down")
-                            .font(.title3)
+                    .pickerStyle(.menu)
+                    .tint(.primary)
+                    .frame(width: 180)
+                    if sortOption.allowsDirection {
+                        Button {
+                            directionRaw = direction == .ascending
+                                ? SortDirection.descending.rawValue
+                                : SortDirection.ascending.rawValue
+                        } label: {
+                            Image(systemName: direction == .ascending ? "arrow.up" : "arrow.down")
+                                .font(.title3)
+                        }
+                        .buttonStyle(.borderless)
+                        .help(direction == .ascending ? String(localized: "ascending") : String(localized: "descending"))
                     }
-                    .buttonStyle(.borderless)
-                    .help(direction == .ascending ? String(localized: "ascending") : String(localized: "descending"))
                 }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")

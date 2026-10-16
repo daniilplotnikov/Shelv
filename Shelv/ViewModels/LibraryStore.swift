@@ -350,16 +350,16 @@ class LibraryStore: ObservableObject {
         }
 
         do {
-            async let added    = api.getRecentlyAdded(size: 20)
-            async let played   = api.getRecentlyPlayed(size: 20)
-            async let frequent = api.getFrequentlyPlayed(size: 20)
+            async let added    = api.getRecentlyAdded(size: 30)
+            async let played   = api.getRecentlyPlayed(size: 30)
+            async let frequent = api.getFrequentlyPlayed(size: 30)
             let (a, p, f) = try await (added, played, frequent)
             guard generation == discoverLoadGeneration, requestSignature == activeServerSignature else { return false }
             if recentlyAdded != a { recentlyAdded = a }
             if recentlyPlayed != p { recentlyPlayed = p }
             if frequentlyPlayed != f { frequentlyPlayed = f }
             if randomAlbums.isEmpty {
-                let random = try await api.getAlbumList(type: "random", size: 20)
+                let random = try await api.getAlbumList(type: "random", size: 30)
                 guard generation == discoverLoadGeneration, requestSignature == activeServerSignature else { return false }
                 if randomAlbums != random { randomAlbums = random }
             }
@@ -376,7 +376,7 @@ class LibraryStore: ObservableObject {
         guard !OfflineModeService.shared.isOffline else { return }
         let requestSignature = activeServerSignature
         do {
-            let random = try await api.getAlbumList(type: "random", size: 20)
+            let random = try await api.getAlbumList(type: "random", size: 30)
             guard requestSignature == activeServerSignature else { return }
             if randomAlbums != random { randomAlbums = random }
         } catch {

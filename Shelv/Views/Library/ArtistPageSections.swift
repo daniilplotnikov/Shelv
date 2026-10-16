@@ -237,6 +237,82 @@ struct ArtistAllAlbumsView: View {
     }
 }
 
+/// The full list behind a Discover shelf's title. Keeps the shelf's own order
+/// (newest, last played, ...), so unlike `ArtistAllAlbumsView` it has no sorting.
+struct DiscoverAlbumsListView: View {
+    let title: String
+    let albums: [Album]
+
+    @AppStorage("artistDetailAlbumIsGrid") private var isGrid = true
+    @Environment(\.personalizationSwipeConfiguration) private var personalization
+    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
+
+    var body: some View {
+        Group {
+            if isGrid {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 20) {
+                        ForEach(albums) { album in
+                            NavigationLink(destination: AlbumDetailView(album: album)) {
+                                AlbumCardView(
+                                    album: album,
+                                    personalization: personalization,
+                                    showArtist: true
+                                )
+                                .equatable()
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding()
+                    PlayerBottomSpacer()
+                }
+            } else {
+                List {
+                    ForEach(albums) { album in
+                        NavigationLink(destination: AlbumDetailView(album: album)) {
+                            HStack(spacing: 12) {
+                                AlbumArtView(coverArtId: album.coverArt, size: 120, cornerRadius: 8)
+                                    .frame(width: 56, height: 56)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(album.name)
+                                        .font(.body)
+                                        .lineLimit(1)
+                                        .foregroundStyle(.primary)
+                                    if let artist = album.artist {
+                                        Text(artist)
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .albumContextMenu(album)
+                    }
+                    PlayerBottomSpacer()
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                .listStyle(.plain)
+            }
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isGrid.toggle()
+                } label: {
+                    Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
+                }
+            }
+        }
+    }
+}
+
 /// The artist's newest release, pulled out of the shelves so it is the first
 /// thing offered after the top songs.
 struct ArtistLatestReleaseCard: View {
