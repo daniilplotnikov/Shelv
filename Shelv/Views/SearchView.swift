@@ -67,8 +67,7 @@ struct SearchView: View {
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
     @State private var appliedResetToken = 0
-    @State private var showAddToPlaylist = false
-    @State private var playlistSongIds: [String] = []
+    @State private var playlistSelection: PlaylistSongsSelection?
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var currentToast: ShelveToast?
@@ -431,8 +430,7 @@ struct SearchView: View {
                                             Task { await libraryStore.toggleStarSong(song) }
                                         },
                                         onAddToPlaylist: {
-                                            playlistSongIds = [song.id]
-                                            showAddToPlaylist = true
+                                            playlistSelection = PlaylistSongsSelection(songIds: [song.id])
                                         },
                                         onPlayNext: {
                                             haptic()
@@ -520,8 +518,7 @@ struct SearchView: View {
                                             Task { await libraryStore.toggleStarSong(song) }
                                         },
                                         onAddToPlaylist: {
-                                            playlistSongIds = [item.songId]
-                                            showAddToPlaylist = true
+                                            playlistSelection = PlaylistSongsSelection(songIds: [item.songId])
                                         },
                                         onPlayNext: {
                                             haptic()
@@ -581,8 +578,7 @@ struct SearchView: View {
                                             Task { await libraryStore.toggleStarSong(song) }
                                         },
                                         onAddToPlaylist: {
-                                            playlistSongIds = [song.id]
-                                            showAddToPlaylist = true
+                                            playlistSelection = PlaylistSongsSelection(songIds: [song.id])
                                         },
                                         onPlayNext: {
                                             haptic()
@@ -808,8 +804,8 @@ struct SearchView: View {
             } message: { msg in
                 Text(msg)
             }
-            .sheet(isPresented: $showAddToPlaylist) {
-                AddToPlaylistSheet(songIds: playlistSongIds)
+            .sheet(item: $playlistSelection) { selection in
+                AddToPlaylistSheet(songIds: selection.songIds)
                     .environmentObject(libraryStore)
                     .tint(accentColor)
             }
@@ -839,8 +835,7 @@ struct SearchView: View {
             let songs = await libraryStore.fetchAllSongs(for: artist)
             guard !songs.isEmpty else { return }
             await MainActor.run {
-                playlistSongIds = songs.map(\.id)
-                showAddToPlaylist = true
+                playlistSelection = PlaylistSongsSelection(songIds: songs.map(\.id))
             }
         }
     }
@@ -1018,8 +1013,7 @@ struct SearchView: View {
             do {
                 let songs = try await libraryStore.fetchAlbumSongs(album)
                 guard !songs.isEmpty else { return }
-                playlistSongIds = songs.map(\.id)
-                showAddToPlaylist = true
+                playlistSelection = PlaylistSongsSelection(songIds: songs.map(\.id))
             } catch {
                 errorMessage = error.localizedDescription
                 showError = true

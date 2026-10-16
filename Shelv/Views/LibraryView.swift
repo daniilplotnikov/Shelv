@@ -420,8 +420,7 @@ struct LibraryView: View {
     @AppStorage("enableDownloads") private var enableDownloads = true
 
     @State private var segment: LibrarySegment = .albums
-    @State private var showAddToPlaylist = false
-    @State private var playlistSongIds: [String] = []
+    @State private var playlistSelection: PlaylistSongsSelection?
     @AppStorage("albumSortOption") private var sortOptionRaw: String = AlbumSortOption.alphabetical.rawValue
     private var sortOption: AlbumSortOption { AlbumSortOption(rawValue: sortOptionRaw) ?? .alphabetical }
     @AppStorage("albumSortDirection") private var albumDirectionRaw: String = SortDirection.ascending.rawValue
@@ -739,8 +738,8 @@ struct LibraryView: View {
         } message: { _ in
             Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
-        .sheet(isPresented: $showAddToPlaylist) {
-            AddToPlaylistSheet(songIds: playlistSongIds)
+        .sheet(item: $playlistSelection) { selection in
+            AddToPlaylistSheet(songIds: selection.songIds)
                 .environmentObject(libraryStore)
                 .tint(accentColor)
         }
@@ -1271,8 +1270,7 @@ struct LibraryView: View {
                     Task { await libraryStore.toggleStarSong(song) }
                 },
                 onAddToPlaylist: {
-                    playlistSongIds = [song.id]
-                    showAddToPlaylist = true
+                    playlistSelection = PlaylistSongsSelection(songIds: [song.id])
                 },
                 onPlayNext: {
                     haptic()

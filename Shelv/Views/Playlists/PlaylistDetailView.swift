@@ -16,8 +16,7 @@ struct PlaylistDetailView: View {
 
     @State private var songs: [Song] = []
     @State private var displayName: String = ""
-    @State private var showAddToPlaylist = false
-    @State private var playlistSongIds: [String] = []
+    @State private var playlistSelection: PlaylistSongsSelection?
     @State private var isLoading = true
     @State private var isEditMode = false
     @State private var searchQuery = ""
@@ -160,8 +159,7 @@ struct PlaylistDetailView: View {
                                 Task { await libraryStore.toggleStarSong(song) }
                             },
                             onAddToPlaylist: {
-                                playlistSongIds = [song.id]
-                                showAddToPlaylist = true
+                                playlistSelection = PlaylistSongsSelection(songIds: [song.id])
                             },
                             onPlayNext: {
                                 haptic()
@@ -320,8 +318,8 @@ struct PlaylistDetailView: View {
         } message: {
             Text("\"\(visiblePlaylistName)\"")
         }
-        .sheet(isPresented: $showAddToPlaylist) {
-            AddToPlaylistSheet(songIds: playlistSongIds)
+        .sheet(item: $playlistSelection) { selection in
+            AddToPlaylistSheet(songIds: selection.songIds)
                 .environmentObject(libraryStore)
                 .tint(accentColor)
         }

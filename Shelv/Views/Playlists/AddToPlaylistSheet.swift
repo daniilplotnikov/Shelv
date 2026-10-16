@@ -185,3 +185,11 @@ struct AddToPlaylistSheet: View {
         }
     }
 }
+
+/// The songs for one presentation of `AddToPlaylistSheet`. Presenting with `sheet(item:)`
+/// binds them to the presentation; a flag plus a separate songs state could build the sheet
+/// with the previous songs.
+struct PlaylistSongsSelection: Identifiable {
+    let id = UUID()
+    let songIds: [String]
+}
